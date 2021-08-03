@@ -35,9 +35,7 @@ class Server:
 
         message = "Host Name: Localhost and Host address: 127.0.0.1 and Host port: " + str(SERVER_PORT) + "\n"
         print("Server is ready to listen for clients...")
-
-    def animate(self, message):
-        
+ 
 
     def handle_requests(self):
         print("Listening...")
