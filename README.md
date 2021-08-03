@@ -1,5 +1,15 @@
 # Artemis
 
+## 03/08 TUE Meet
+- Implemented first part of the project: multithreaded proxy server
+- Next meet: ??? (Probably day after, Thursday)
+- Reference code for basic server: https://github.com/jerrinss5/Multi-threaded-Proxy-Server/
+- Hari:
+  - Webpage Caching
+  - Blacklisting
+- Loay:
+  - Server Testing (Find older test files)
+  - Authentication
 
 ## 31/07 SAT Meet
 - Pinkesh and Anant Code is useless. Sticking to Chaitanya Patel. (https://github.com/chaitanya100100/Proxy-Server/)
