@@ -2,7 +2,6 @@
 TODO:
 - Make parsing robust (add http:// removal)
 - Add url file indexing (currently only access hosts)
-- Add port number parsing
 - Add time (print when conenction closed)
 - Add caching once everything works perfectly
 - Add support for POST request
@@ -73,12 +72,15 @@ class Server:
                 proxy_socket.settimeout(2)
                 proxy_socket.connect((parsed_address["url"], parsed_address["port"])) # PROXY PORT IS GENERALLY 8
 
-                    # BELOW LINE WAS TROUBLESOME
-                web_request = b"GET / HTTP/1.1\nHost: "  + bytes(parsed_address["url"], 'utf-8') + b"\n\n" # WTF DOES THIS DO 
+                if parsed_address["file"]:
+                    web_request = bytes("GET /" + parsed_address["file"][1:] + " HTTP/1.1\nHost: " + parsed_address["url"] + "\n\n", 'utf-8') # SKIP FIRST LINE, CONSIDER ALL ELSE
+                else:
+                    web_request = bytes("GET / HTTP/1.1\nHost: "  + parsed_address["url"] + "\n\n", 'utf-8') # WTF DOES THIS DO 
+
 
                 proxy_socket.send(web_request)
 
-                # GET http://www.google.com:8080/ HTTP/1.1
+                # GET https://www.google.com.sa/imghp?hl=en&authuser=0&ogbl HTTP/1.1
                 # GET http://www.google.com/abc/xyz HTTP/1.1
 
                 timeout_flag = False
@@ -139,14 +141,17 @@ class Server:
         # REMOVING TRAILING / LIKE google.com/ OR FINDING FILE PATH
         if "/" in nohttp_url:
             main_url = nohttp_url.split("/")[0]
-            filepath = nohttp_url.split("/")[1:]
+            filepath_list = nohttp_url.split("/")[1:] # THIS RETURNS A LIST LIKE ['abc', 'xyz'] 
+            filepath_str = ""
+            for path in filepath_list:
+                filepath_str += "/" + path
 
         else:
             main_url = nohttp_url
-            filepath = ""
+            filepath_str = ""
 
         parsed_address["url"] = main_url # URL OF REQUEST
-        parsed_address["file"] = filepath # FILEPATH
+        parsed_address["file"] = filepath_str # FILEPATH
 
         # ADDING PORT NUMBERS
         if ":" in nohttp_url:
