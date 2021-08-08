@@ -25,7 +25,6 @@ SERVER_PORT = 8079
 MAX_CLIENTS = 10
 MAX_REQUEST_LEN = 1024
 class Server:
-
     def __init__(self):
         try:
             self.server_socket = socket(AF_INET, SOCK_STREAM)
