@@ -1,8 +1,9 @@
 '''
 TODO:
-- Make parsing robust (add http:// removal)
-- Add url file indexing (currently only access hosts)
+- Add authentication for blacklisted URLs
+- Add caching
 - Add time (print when conenction closed)
+- Add CIDR blacklisting (currently only blacklisting URL)
 - Add caching once everything works perfectly
 - Add support for POST request
 
@@ -10,6 +11,7 @@ CHANGELOG:
 08/08 LOAY
 - Added parsing (removal http://, adding filepath, adding portnumber)
 - Added calls to filepath (handling like google.com/abc/xyz, not just handling main url)
+- Added blacklisting
 '''
 
 import time
@@ -36,6 +38,12 @@ class Server:
         # allowing up to 10 client connections
         self.server_socket.listen(MAX_CLIENTS)
 
+        # CREATING BLACKLIST ARRAY
+        with open("./blacklist.txt") as f:
+            self.blocked = f.read().splitlines()
+        print("BLACKLIST: ", self.blocked)
+        print("Blacklist ready...")
+
         message = "Host Name: Localhost and Host address: 127.0.0.1 and Host port: " + str(SERVER_PORT) + "\n"
         print("Server is ready to listen for clients...")
  
@@ -58,9 +66,17 @@ class Server:
         client_request = client_socket.recv(1024) # CLIENT REQUEST IS "GET www.google.com HTTP/1.1"
         parsed_address = self.parse_request(client_request)
 
-        print("#"* 50, "\nPARSED ADDRESS")
+        print("#"* 50 + "\nPARSED ADDRESS")
         pprint(parsed_address)
-        print("PARSED ADDRESS\n", "#"* 50)
+        print("PARSED ADDRESS\n" + "#"* 50)
+
+        # BLACKLIST CHECK
+        if self.check_in_blacklist(parsed_address):
+            print("DESTINATION SERVER IS BLACKLISTED")
+            client_socket.send(b"HTTP/1.1 403 Forbidden\r\n\r\n")
+            client_socket.close()
+            return
+
         
         if parsed_address["type"] == "GET":
             try:
@@ -118,6 +134,7 @@ class Server:
             print("Request other than GET issued, stopping.")
             client_socket.send(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n")
             client_socket.close()
+        return
 
 
     def parse_request(self,address):
@@ -160,6 +177,14 @@ class Server:
             parsed_address["port"] = 80 
 
         return parsed_address
+
+    def check_in_blacklist(self, parsed_address):
+        # URLS SAVED, NOT IP ADDRESSES
+        if parsed_address["url"] in self.blocked:
+            return True
+        return False
+        
+        
 
 if __name__ == "__main__":
     server = Server()
