@@ -1,13 +1,16 @@
 '''
 TODO:
-
-LOAY 03/07/2021:
 - Make parsing robust (add http:// removal)
 - Add url file indexing (currently only access hosts)
 - Add port number parsing
 - Add time (print when conenction closed)
 - Add caching once everything works perfectly
 - Add support for POST request
+
+CHANGELOG: 
+08/08 LOAY
+- Added parsing (removal http://, adding filepath, adding portnumber)
+- Added calls to filepath (handling like google.com/abc/xyz, not just handling main url)
 '''
 
 import time
@@ -15,6 +18,7 @@ import os
 import sys
 from socket import *
 import threading
+from pprint import *
 
 SERVER_PORT = 8079
 MAX_CLIENTS = 10
@@ -55,9 +59,9 @@ class Server:
         client_request = client_socket.recv(1024) # CLIENT REQUEST IS "GET www.google.com HTTP/1.1"
         parsed_address = self.parse_request(client_request)
 
-        # BYTES VS STRING KI BAKCHODI HOGI
-        # print("asdfasdf " * 50)
-        # print(b"GET / HTTP/1.1\nHost: " + bytes(parsed_address["url"], 'utf-8') + b"\n\n")
+        print("#"* 50, "\nPARSED ADDRESS")
+        pprint(parsed_address)
+        print("PARSED ADDRESS\n", "#"* 50)
         
         if parsed_address["type"] == "GET":
             try:
@@ -68,46 +72,49 @@ class Server:
             try:
                 proxy_socket.settimeout(2)
                 proxy_socket.connect((parsed_address["url"], parsed_address["port"])) # PROXY PORT IS GENERALLY 8
-            except error as e: 
-                client_socket.send('HTTP/1.1 404 not found\r\n\r\n')
-                print(f"Could not access server, 404: {e}")
 
-            
-            # BELOW LINE WAS TROUBLESOME
-            web_request = b"GET / HTTP/1.1\nHost: "  + bytes(parsed_address["url"], 'utf-8') + b"\n\n" # WTF DOES THIS DO 
+                    # BELOW LINE WAS TROUBLESOME
+                web_request = b"GET / HTTP/1.1\nHost: "  + bytes(parsed_address["url"], 'utf-8') + b"\n\n" # WTF DOES THIS DO 
 
-            proxy_socket.send(web_request)
+                proxy_socket.send(web_request)
 
-            timeout_flag = False
-            web_response_append = b""
-            while True:
-                try:
-                    web_response = proxy_socket.recv(4096)
-                except timeout:
-                    if len(web_response_append) <= 0:
-                        # KUCH BHI NAHI AAYA, SHURU SE HI TIMEOUT
-                        timeout_flag = True
-                    break
-                if len(web_response) > 0:
-                    web_response_append += web_response
+                # GET http://www.google.com:8080/ HTTP/1.1
+                # GET http://www.google.com/abc/xyz HTTP/1.1
+
+                timeout_flag = False
+                web_response_append = b""
+                while True:
+                    try:
+                        web_response = proxy_socket.recv(4096)
+                    except timeout:
+                        if len(web_response_append) <= 0:
+                            # KUCH BHI NAHI AAYA, SHURU SE HI TIMEOUT
+                            timeout_flag = True
+                        break
+                    if len(web_response) > 0:
+                        web_response_append += web_response
+                    else:
+                        # SAB KUCH AAGAYA, BREAK LOOP
+                        break
+
+                # APPEND SERVER DETAILS HERE
+
+                if timeout_flag:
+                    # SHURU SE HI TIMEOUT
+                    client_socket.send("HTTP/1.1 408 Request timeout\r\n\r\n")
                 else:
-                    # SAB KUCH AAGAYA, BREAK LOOP
-                    break
-
-            # APPEND SERVER DETAILS HERE
-
-            if timeout_flag:
-                # SHURU SE HI TIMEOUT
-                client_socket.send("HTTP/1.1 408 Request timeout\r\n\r\n")
-            else:
-                # IF NO TIMEOUT, THEN SEND ACTUAL MESSAGE
-                client_socket.send(web_response_append)
-            proxy_socket.close()
+                    # IF NO TIMEOUT, THEN SEND ACTUAL MESSAGE
+                    client_socket.send(web_response_append)
+                proxy_socket.close()
+            except error as e: 
+                client_socket.send(b'HTTP/1.1 404 not found\r\n\r\n')
+                print(f"Could not access server, 404: {e}")
+            client_socket.close()
 
         else:
             # IF REQUEST ISN'T GET, STOP EVERYTHING CLOSE CONNECTION 
             print("Request other than GET issued, stopping.")
-            client_socket.send("HTTP/1.1 405 Method Not Allowed\r\n\r\n")
+            client_socket.send(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n")
             client_socket.close()
 
 
@@ -119,11 +126,33 @@ class Server:
 
         split_address = address.split(' ')
         parsed_address["type"] = split_address[0] # WILL USUALLY BE GET
-        parsed_address["url"] = split_address[1] # URL OF REQUEST
 
-        #CHANGE BELOW LINE
-        parsed_address["port"] = 80 
-        #CHANGE ABOVE LINE
+        # WE NEED TO REMOVE THE HTTP:// PART TO GET TO THE URL
+        fullurl = split_address[1] # CONTAINS EVERYTHING LIKE https://www.google.com/abc/xyz
+
+        # REMOVING https://
+        if "//" in fullurl:
+            nohttp_url = fullurl.split("//")[1]
+        else:
+            nohttp_url = fullurl
+
+        # REMOVING TRAILING / LIKE google.com/ OR FINDING FILE PATH
+        if "/" in nohttp_url:
+            main_url = nohttp_url.split("/")[0]
+            filepath = nohttp_url.split("/")[1:]
+
+        else:
+            main_url = nohttp_url
+            filepath = ""
+
+        parsed_address["url"] = main_url # URL OF REQUEST
+        parsed_address["file"] = filepath # FILEPATH
+
+        # ADDING PORT NUMBERS
+        if ":" in nohttp_url:
+            parsed_address["port"] = int(main_url.split(':')[1])
+        else: 
+            parsed_address["port"] = 80 
 
         return parsed_address
 
