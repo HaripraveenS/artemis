@@ -20,10 +20,14 @@ import sys
 from socket import *
 import threading
 from pprint import *
+from typing import Callable
+import re, string
 
 SERVER_PORT = 8079
 MAX_CLIENTS = 10
 MAX_REQUEST_LEN = 1024
+CACHE_PATH = "./cache"
+
 class Server:
     def __init__(self):
         try:
@@ -60,6 +64,34 @@ class Server:
             d.start()
         self.server_socket.close()
 
+    def get_cache_size(self):
+        return sum(os.path.getsize(f) for f in os.listdir(CACHE_PATH) if os.path.isfile(f))
+
+
+    def cache_hit(self, filepath):
+        # pass
+        pattern = re.compile('[\W_]+')
+        filepath_wo_slash = pattern.sub('_', filepath)
+        cache_filepath = os.path.join(CACHE_PATH, filepath_wo_slash)
+        res = {}
+        try :
+            cached_file = open(cache_filepath, "r")
+            print("cache hit...")
+            response_message = ""
+            cached_file.close()
+            with open(cache_filepath) as f:
+                for line in f:
+                    response_message += line
+            return {
+                "hit": True,
+                "file": response_message
+            }
+        except IOError as e:
+            print("cache miss...")
+            return {
+                "hit":False
+            }
+
     def proxy_thread(self,client_socket,client_address):
         print("#"*20 + "\nCREATED THREAD...\n" + "#"*20)
         client_request = client_socket.recv(1024) # CLIENT REQUEST IS "GET www.google.com HTTP/1.1"
@@ -78,6 +110,17 @@ class Server:
 
         
         if parsed_address["type"] == "GET":
+            '''
+                Adding caching here
+                '''
+            cache_out = self.cache_hit(parsed_address["file"])
+            if cache_out["hit"] == True :
+                # print("cache hit")
+                print(cache_out["file"])
+                client_socket.send(cache_out["file"].encode('utf-8'))
+                client_socket.close()
+                return
+                    # return cache_out["file"]
             try:
                 proxy_socket = socket(AF_INET, SOCK_STREAM)
             except error as e:
@@ -92,6 +135,8 @@ class Server:
                 else:
                     web_request = bytes("GET / HTTP/1.1\nHost: "  + parsed_address["url"] + "\n\n", 'utf-8') # WTF DOES THIS DO 
 
+                
+
 
                 proxy_socket.send(web_request)
 
@@ -102,7 +147,9 @@ class Server:
                 web_response_append = b""
                 while True:
                     try:
-                        web_response = proxy_socket.recv(4096)
+                        web_response = proxy_socket.recv(10000)
+                        # print("this is json out")
+                        # print(web_response.decode("utf-8"))
                     except timeout:
                         if len(web_response_append) <= 0:
                             # KUCH BHI NAHI AAYA, SHURU SE HI TIMEOUT
@@ -122,7 +169,18 @@ class Server:
                 else:
                     # IF NO TIMEOUT, THEN SEND ACTUAL MESSAGE
                     client_socket.send(web_response_append)
+                
+                cache_newfile = parsed_address["file"]
+                pattern = re.compile('[\W_]+')
+                cache_newfile_wo_slash = pattern.sub('_', cache_newfile)
+                cache_newfile_path = os.path.join(CACHE_PATH,cache_newfile_wo_slash)
+                proxy_new_file = open(cache_newfile_path, "wb")
+                # writing the entire response to file
+                proxy_new_file.write(web_response_append)
+                proxy_new_file.close()
+                print(proxy_new_file)
                 proxy_socket.close()
+
             except error as e: 
                 client_socket.send(b'HTTP/1.1 404 not found\r\n\r\n')
                 print(f"Could not access server, 404: {e}")
@@ -184,7 +242,11 @@ class Server:
         return False
         
         
+from pathlib import Path
+
 
 if __name__ == "__main__":
+    if not os.path.isdir(CACHE_PATH):
+        os.mkdir(CACHE_PATH)
     server = Server()
     server.handle_requests()
