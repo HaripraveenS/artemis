@@ -1,4 +1,7 @@
 # Artemis
+## 11/08 Update
+- Implemented basic caching.
+-  Loay to implement authentication.
 
 ## 03/08 TUE Meet
 - Implemented first part of the project: multithreaded proxy server
