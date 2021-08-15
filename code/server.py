@@ -1,13 +1,21 @@
 '''
 TODO:
-- Add authentication for blacklisted URLs
-- Add caching
-- Add time (print when conenction closed)
-- Add CIDR blacklisting (currently only blacklisting URL)
-- Add caching once everything works perfectly
-- Add support for POST request
+- Multithreading testing : Loay
+- Caching Improve : Hari
+- Time (kitta time hua h) : Loay
+- Logging add : Hari
+- HTTPS (?) : Both
+- Add post request : 
+- Output Color : 
+- IPs in blacklisting : 
+
 
 CHANGELOG: 
+
+15/08 LOAY
+- Added authentication/admins
+- Changed parsing code to allow auth
+
 08/08 LOAY
 - Added parsing (removal http://, adding filepath, adding portnumber)
 - Added calls to filepath (handling like google.com/abc/xyz, not just handling main url)
@@ -22,11 +30,14 @@ import threading
 from pprint import *
 from typing import Callable
 import re, string
+import base64
 
 SERVER_PORT = 8079
 MAX_CLIENTS = 10
 MAX_REQUEST_LEN = 1024
-CACHE_PATH = "./cache"
+CACHE_PATH = "./cache/"
+BLACKLIST_PATH = "./blacklist.txt"
+ADMINS_PATH = "./admins.txt"
 
 class Server:
     def __init__(self):
@@ -42,10 +53,19 @@ class Server:
         self.server_socket.listen(MAX_CLIENTS)
 
         # CREATING BLACKLIST ARRAY
-        with open("./blacklist.txt") as f:
+        with open(BLACKLIST_PATH) as f:
             self.blocked = f.read().splitlines()
         print("BLACKLIST: ", self.blocked)
         print("Blacklist ready...")
+
+        with open(ADMINS_PATH) as f:
+            self.admins = []
+            print("ADMINS: ")
+            for admin in f.read().splitlines():
+                self.admins.append(str(base64.b64encode(admin.encode('utf-8'))))
+                print(admin[:admin.find(":")])
+                # self.admins.append(admin)
+        print("Admins ready...")
 
         message = "Host Name: Localhost and Host address: 127.0.0.1 and Host port: " + str(SERVER_PORT) + "\n"
         print("Server is ready to listen for clients...")
@@ -67,16 +87,16 @@ class Server:
     def get_cache_size(self):
         return sum(os.path.getsize(f) for f in os.listdir(CACHE_PATH) if os.path.isfile(f))
 
-
     def cache_hit(self, filepath):
         # pass
         pattern = re.compile('[\W_]+')
         filepath_wo_slash = pattern.sub('_', filepath)
         cache_filepath = os.path.join(CACHE_PATH, filepath_wo_slash)
+        print("cache_filepath: ", cache_filepath)
         res = {}
         try :
             cached_file = open(cache_filepath, "r")
-            print("cache hit...")
+            print("CACHE HIT...")
             response_message = ""
             cached_file.close()
             with open(cache_filepath) as f:
@@ -87,7 +107,7 @@ class Server:
                 "file": response_message
             }
         except IOError as e:
-            print("cache miss...")
+            print("CACHE MISS...")
             return {
                 "hit":False
             }
@@ -103,20 +123,18 @@ class Server:
 
         # BLACKLIST CHECK
         if self.check_in_blacklist(parsed_address):
-            print("DESTINATION SERVER IS BLACKLISTED")
             client_socket.send(b"HTTP/1.1 403 Forbidden\r\n\r\n")
             client_socket.close()
             return
 
-        
         if parsed_address["type"] == "GET":
             '''
                 Adding caching here
-                '''
+            '''
             cache_out = self.cache_hit(parsed_address["file"])
-            if cache_out["hit"] == True :
+            if cache_out["hit"] == True:
                 # print("cache hit")
-                print(cache_out["file"])
+                # print(cache_out["file"])
                 client_socket.send(cache_out["file"].encode('utf-8'))
                 client_socket.close()
                 return
@@ -135,9 +153,6 @@ class Server:
                 else:
                     web_request = bytes("GET / HTTP/1.1\nHost: "  + parsed_address["url"] + "\n\n", 'utf-8') # WTF DOES THIS DO 
 
-                
-
-
                 proxy_socket.send(web_request)
 
                 # GET https://www.google.com.sa/imghp?hl=en&authuser=0&ogbl HTTP/1.1
@@ -148,8 +163,6 @@ class Server:
                 while True:
                     try:
                         web_response = proxy_socket.recv(10000)
-                        # print("this is json out")
-                        # print(web_response.decode("utf-8"))
                     except timeout:
                         if len(web_response_append) <= 0:
                             # KUCH BHI NAHI AAYA, SHURU SE HI TIMEOUT
@@ -178,7 +191,6 @@ class Server:
                 # writing the entire response to file
                 proxy_new_file.write(web_response_append)
                 proxy_new_file.close()
-                print(proxy_new_file)
                 proxy_socket.close()
 
             except error as e: 
@@ -193,14 +205,15 @@ class Server:
             client_socket.close()
         return
 
-
     def parse_request(self,address):
-        # BAREBONES AT THE MOMENT, CAN COPY PASTE CODE FROM ELSEWHERE (NO BRAIN NEEDED)
         print(address)
         address = address.decode()
         parsed_address = {} 
+        address = str(address)
+        addr_lines = str(address).split('\n')
 
-        split_address = address.split(' ')
+        # DOING PARSING OF THE FIRST LINE (GET www.xyz.com:8080/abc HTTP/1.1)
+        split_address = addr_lines[0].split(' ')
         parsed_address["type"] = split_address[0] # WILL USUALLY BE GET
 
         # WE NEED TO REMOVE THE HTTP:// PART TO GET TO THE URL
@@ -233,14 +246,23 @@ class Server:
         else: 
             parsed_address["port"] = 80 
 
+        # DOING PARSING OF AUTHENTICATION HEADER (CAN ADD OTHER HEADERS AS WELL)
+        parsed_address["auth"] = addr_lines[1].split(" ")[2]
         return parsed_address
 
     def check_in_blacklist(self, parsed_address):
         # URLS SAVED, NOT IP ADDRESSES
+        # AUTHENTICATION HAPPENS HERE
+        print("Checking for blacklist")
         if parsed_address["url"] in self.blocked:
-            return True
+            print("SERVER IS BLACKLISTED")
+            if(parsed_address["auth"] in self.admins):
+                print("ADMIN PRIVILEGES, ALLOWING BLACKLISTED REQUEST")
+                return False
+            else:
+                print("USED IS NOT PRIVILEGED, BLOCKING BLACKLISTED REQUEST")
+                return True
         return False
-        
         
 from pathlib import Path
 
