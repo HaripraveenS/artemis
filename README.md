@@ -1,4 +1,16 @@
 # Artemis
+## 15/08 SUN Meet
+Major part of project completed. 
+Todo:
+- Multithreading testing : Loay
+- Caching Improve : Hari
+- Time (Round Trip Time) : Loay
+- Logging add : Hari
+- HTTPS Research (?) : Both
+- IPs in blacklisting (is it possible?) : Loay
+- Add post request : 
+- Output Color : 
+
 ## 11/08 Update
 - Implemented basic caching.
 -  Loay to implement authentication.
