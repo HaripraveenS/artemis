@@ -1,4 +1,10 @@
 # Artemis
+## 21/08 update
+- multithreading testing over
+- caching improved
+- logging added
+- color is stupid
+
 ## 15/08 SUN Meet
 Major part of project completed. 
 Todo:
