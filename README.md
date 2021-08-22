@@ -10,7 +10,7 @@ An HTTP proxy server implemented via python socket programming with caching, bla
 - `client_testing.py` contains code for multithreaded testing (multiple clients making multiple requests).
 
 ## Usage
-- Run `proxy.py -server_port x -active_clients y -cache_size z`.
+- Run `proxy.py --server_port x --active_clients y --cache_size z`.
 - By default the values are 8079 (server_port), 10 (active_clients), 5 (cache_size).
 - Run `client.py`, enter the HTTP request and username:password.
 - By default `GET www.google.com/ HTTP/1.1` is sent.
