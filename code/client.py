@@ -1,5 +1,4 @@
 '''
-
 CHANGELOG
 
 15/08 LOAY
@@ -21,8 +20,6 @@ authorization = input("Enter user:pass : ")
 
 if len(request) == 0:
     # request = "GET www.google.com HTTP/1.1"
-    request = "GET https://jsonplaceholder.typicode.com/ HTTP/1.1"
-    request = "GET https://jsonplaceholder.typicode.com/ HTTP/1.1"
     request = "GET http://jsonplaceholder.typicode.com/posts/ HTTP/1.1"
 
 # if len(request) !=0 and len(authorization) != 0:

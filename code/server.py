@@ -1,9 +1,6 @@
 '''
 TODO:
-- Multithreading testing : Loay
-- Caching Improve : Hari
 - Time (kitta time hua h) : Loay
-- Logging add : Hari
 - HTTPS (?) : Both
 - Add post request : 
 - Output Color : 
@@ -32,13 +29,21 @@ from typing import Callable
 import re, string
 import base64
 import logging
-# from datetime import datetime, timedelta
-# import time
+import argparse
 from datetime import datetime, date, time, timedelta
 
-SERVER_PORT = 8079
-MAX_CLIENTS = 10
-CACHE_SIZE = 5
+parser = argparse.ArgumentParser(description = "proxy server")
+parser.add_argument("--server_port", default = 8079, type = int)
+parser.add_argument("--cache_size", default = 5, type = int)
+parser.add_argument("--max_clients", default = 10, type = int)
+args = parser.parse_args()
+
+# SERVER_PORT = 8079
+# MAX_CLIENTS = 10
+# CACHE_SIZE = 5
+SERVER_PORT = args.server_port
+MAX_CLIENTS = args.max_clients
+CACHE_SIZE = args.cache_size
 MAX_REQUEST_LEN = 1024
 CACHE_PATH = "./cache/"
 BLACKLIST_PATH = "./blacklist.txt"
@@ -91,6 +96,7 @@ class Server:
 
 
         message = "Host Name: Localhost and Host address: 127.0.0.1 and Host port: " + str(SERVER_PORT) + "\n"
+        message += "Max Cache Size: " + str(CACHE_SIZE) + " Max Clients: " + str(MAX_CLIENTS) + "\n"
         # print("Server is ready to listen for clients...")
         self.logger.info(message)
         self.logger.info("Server is ready to listen for clients...")
