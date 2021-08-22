@@ -17,6 +17,7 @@ client_socket.connect((SERVER_IP, SERVER_PORT))
 
 request = input("Enter request: ")
 authorization = input("Enter user:pass : ")
+print("asdfasf", authorization, type(authorization))
 
 if len(request) == 0:
     # request = "GET www.google.com HTTP/1.1"
